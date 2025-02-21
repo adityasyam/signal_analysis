@@ -67,3 +67,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     echo_profiles(args.audio, args.maxval, args.maxdiffval, args.mindiffval, args.sampling_rate, args.n_channels, args.frame_length, args.no_overlapp, args.no_diff)
+
+#USAGE: python echo_profiles.py -a ../facial1.raw
