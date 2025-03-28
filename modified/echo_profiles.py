@@ -34,7 +34,8 @@ def echo_profiles(audio_file, maxval, maxdiff, mindiff, sampling_rate=96000, n_c
     if profiles.shape[1] > max_image_width:
         profiles = profiles[:, :max_image_width]
     
-    profiles_img = plot_profiles_split_channels(profiles, n_coi, maxval, minval=0)
+    profiles_img = plot_profiles_split_channels(profiles, n_coi, maxval, minval=0, 
+                                               sampling_rate=sampling_rate, frame_length=frame_length)
     
     if profiles_img is not None:
         cv2.imwrite('%s_profiles.png' % (audio_file[:-4]), profiles_img)
@@ -46,7 +47,8 @@ def echo_profiles(audio_file, maxval, maxdiff, mindiff, sampling_rate=96000, n_c
         if diff_profiles.shape[1] > max_image_width:
             diff_profiles = diff_profiles[:, :max_image_width]
         
-        diff_profiles_img = plot_profiles_split_channels(diff_profiles, n_coi, maxdiff, mindiff)
+        diff_profiles_img = plot_profiles_split_channels(diff_profiles, n_coi, maxdiff, mindiff,
+                                                        sampling_rate=sampling_rate, frame_length=frame_length)
         
         if diff_profiles_img is not None:
             cv2.imwrite('%s_diff_profiles.png' % (audio_file[:-4]), diff_profiles_img)
