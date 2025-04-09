@@ -82,8 +82,10 @@ def echo_profiles(audio_file, maxval, maxdiff, mindiff, sampling_rate=96000, n_c
         # Generate a descriptive filename with the time interval
         interval_filename = f"{audio_file[:-4]}_interval_{idx+1}_{interval_start_time:.2f}s-{interval_end_time:.2f}s"
         
+        # Pass the start_time to the plotting function for correct time axis
         profiles_img = plot_profiles_split_channels(profiles, n_coi, maxval, minval=0, 
-                                                  sampling_rate=sampling_rate, frame_length=frame_length)
+                                                  sampling_rate=sampling_rate, frame_length=frame_length,
+                                                  start_time=interval_start_time)
         
         if profiles_img is not None:
             cv2.imwrite(f'{interval_filename}_profiles.png', profiles_img)
@@ -92,16 +94,18 @@ def echo_profiles(audio_file, maxval, maxdiff, mindiff, sampling_rate=96000, n_c
         if not no_diff:
             diff_profiles = np.abs(profiles[:, 1:]) - np.abs(profiles[:, :-1])
             
+            # Also pass start_time to the diff profiles plot
             diff_profiles_img = plot_profiles_split_channels(diff_profiles, n_coi, maxdiff, mindiff,
-                                                          sampling_rate=sampling_rate, frame_length=frame_length)
+                                                          sampling_rate=sampling_rate, frame_length=frame_length,
+                                                          start_time=interval_start_time)
             
             if diff_profiles_img is not None:
                 cv2.imwrite(f'{interval_filename}_diff_profiles.png', diff_profiles_img)
                 np.save(f'{interval_filename}_diff_profiles.npy', diff_profiles)
     
-    # Create a combined figure showing all intervals
+    # Create a combined figure showing all intervals - adjust for taller images
     if len(intervals) > 1:
-        plt.figure(figsize=(15, 4 * len(intervals)))
+        plt.figure(figsize=(16, 10 * len(intervals)))  # Much taller figure to accommodate taller spectrograms
         
         for idx, (start_sample, end_sample) in enumerate(intervals):
             interval_start_time = start_sample / sampling_rate
@@ -112,7 +116,7 @@ def echo_profiles(audio_file, maxval, maxdiff, mindiff, sampling_rate=96000, n_c
                 img = plt.imread(interval_filename)
                 plt.subplot(len(intervals), 1, idx+1)
                 plt.imshow(img)
-                plt.title(f'Interval {idx+1}: {interval_start_time:.4f}s - {interval_end_time:.4f}s')
+                plt.title(f'Interval {idx+1}: {interval_start_time:.4f}s - {interval_end_time:.4f}s', fontsize=14)
                 plt.axis('off')
         
         plt.tight_layout()
@@ -138,4 +142,4 @@ if __name__ == '__main__':
                  args.sampling_rate, args.n_channels, args.frame_length, 
                  args.no_overlapp, args.no_diff, args.interval_length)
 
-#USAGE: python echo_profiles_low.py -a ../facial1.raw
+#USAGE: python echo_profiles.py -a ../facial1.raw

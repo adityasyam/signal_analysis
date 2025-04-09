@@ -22,7 +22,32 @@ def plot_profiles(profiles, max_val=None, min_val=None):
     heat_map = cv2.cvtColor(heat_map, cv2.COLOR_HSV2BGR)
     return heat_map
 
-def plot_profiles_split_channels(profiles, n_channels, maxval, minval=None, sampling_rate=96000, frame_length=600):
+def plot_profiles_split_channels(profiles, n_channels, maxval, minval=None, sampling_rate=96000, frame_length=600, start_time=0.0):
+    """
+    Plot STFT profiles with proper time axis labels.
+    
+    Parameters:
+    -----------
+    profiles : numpy.ndarray
+        The STFT profiles data
+    n_channels : int
+        Number of channels to display
+    maxval : float
+        Maximum value for color scaling
+    minval : float, optional
+        Minimum value for color scaling
+    sampling_rate : int, optional
+        Sampling rate of the audio file in Hz
+    frame_length : int, optional
+        Length of each frame in samples
+    start_time : float, optional
+        Start time of the interval in seconds, used for correct x-axis labeling
+    
+    Returns:
+    --------
+    numpy.ndarray
+        Image representation of STFT profiles
+    """
     channel_width = profiles.shape[0] // n_channels
     
     # Calculate actual frequency and time values
@@ -38,34 +63,30 @@ def plot_profiles_split_channels(profiles, n_channels, maxval, minval=None, samp
     max_time = profiles.shape[1] * time_resolution
     
     # Create margins for labels
-    margin_left = 100   # Space for y-axis labels
-    margin_bottom = 50  # Space for x-axis labels
-    margin_top = 40     # Space for title
-    margin_right = 30   # Space on the right
+    margin_left = 120   # Space for y-axis labels
+    margin_bottom = 60  # Space for x-axis labels
+    margin_top = 50     # Space for title
+    margin_right = 40   # Space on the right
     
-    # Increase the width-to-height ratio significantly - make it much wider
-    # Use a fixed channel height that's smaller than default to make it wider
-    channel_display_height = min(channel_width, 150)  # Limit channel height for better proportions
+    # Create a balanced image size
+    # Use a reasonable width that's not too stretched
+    target_width = 800
     
-    # Calculate a good image width - make it significantly wider
-    # For a 0.2 second window, aim for a width that's about 4-5x the height of a single channel
-    target_width = 800  # Fixed width for better visualization
+    # MAJOR CHANGE: Make channel display height MUCH LARGER to see patterns clearly
+    # This will increase the vertical resolution significantly
+    # Default channel_width might be around 200-300, we'll make it much larger
+    channel_display_height = 400  # Significantly larger height for each channel
     
-    # If the profiles are too long, downsample them to target width
-    # If they're too short, keep them as is
+    # Adjust the profile width to maintain a good aspect ratio
     if profiles.shape[1] > target_width:
         indices = np.linspace(0, profiles.shape[1]-1, target_width).astype(int)
         downsampled_profiles = profiles[:, indices]
     else:
-        # If original data is shorter than target, pad with zeros on the right
-        padding_width = target_width - profiles.shape[1]
-        if padding_width > 0:
-            downsampled_profiles = np.pad(profiles, ((0, 0), (0, padding_width)), mode='constant')
-        else:
-            downsampled_profiles = profiles
+        # For short intervals, keep original time resolution
+        downsampled_profiles = profiles
     
-    # Create image with space for labels - fixed width, appropriate height
-    img_height = (channel_display_height + 20) * n_channels + margin_bottom + margin_top
+    # Create image with space for labels - now with much taller channels
+    img_height = (channel_display_height + 40) * n_channels + margin_bottom + margin_top
     img_width = target_width + margin_left + margin_right
     profiles_img = np.ones((img_height, img_width, 3), dtype=np.uint8) * 255
     
@@ -74,16 +95,14 @@ def plot_profiles_split_channels(profiles, n_channels, maxval, minval=None, samp
         # Extract channel data
         channel_data = downsampled_profiles[n * channel_width: (n + 1) * channel_width]
         
-        # If the channel data is taller than our display height, resize it
-        if channel_width > channel_display_height:
-            # Resize to our target height while preserving width
-            channel_img_full = plot_profiles(channel_data, maxval, minval)
-            channel_img = cv2.resize(channel_img_full, (channel_img_full.shape[1], channel_display_height))
-        else:
-            channel_img = plot_profiles(channel_data, maxval, minval)
+        # Resize the channel data to have more vertical resolution
+        channel_img_full = plot_profiles(channel_data, maxval, minval)
+        
+        # Resize to taller height while preserving width
+        channel_img = cv2.resize(channel_img_full, (channel_img_full.shape[1], channel_display_height))
         
         # Position in the main image
-        y_start = n * (channel_display_height + 20) + margin_top
+        y_start = n * (channel_display_height + 40) + margin_top
         y_end = y_start + channel_display_height
         
         # Place the channel image
@@ -93,15 +112,15 @@ def plot_profiles_split_channels(profiles, n_channels, maxval, minval=None, samp
         # Add channel label
         cv2.putText(profiles_img, f"Channel {n}", 
                    (10, y_start + channel_display_height//2), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 2)
     
-    # Add frequency ticks and labels for each channel
+    # Add frequency ticks and labels for each channel - more frequency ticks for better detail
     for n in range(n_channels):
-        y_start = n * (channel_display_height + 20) + margin_top
+        y_start = n * (channel_display_height + 40) + margin_top
         
-        # Add frequency labels (y-axis)
-        # Add ticks at 0%, 25%, 50%, 75%, and 100% of the frequency range
-        for i, percent in enumerate([0, 0.25, 0.5, 0.75, 1.0]):
+        # Add more frequency labels (y-axis) for better detail
+        # Add ticks at 0%, 10%, 20%, ..., 100% of the frequency range
+        for i, percent in enumerate(np.linspace(0, 1.0, 11)):
             y_pos = int(y_start + channel_display_height * (1 - percent))
             freq_val = int(max_freq * percent / 1000)  # Convert to kHz
             
@@ -110,17 +129,21 @@ def plot_profiles_split_channels(profiles, n_channels, maxval, minval=None, samp
             
             # Add label
             cv2.putText(profiles_img, f"{freq_val} kHz", 
-                       (margin_left - 80, y_pos + 5), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+                       (margin_left - 100, y_pos + 5), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
+            
+            # Add faint horizontal grid lines for better frequency tracking
+            cv2.line(profiles_img, (margin_left, y_pos), (margin_left + target_width, y_pos), 
+                    (200, 200, 200), 1, cv2.LINE_AA)
     
-    # Add time labels (x-axis)
-    num_ticks = 8  # More time ticks for better detail
+    # Add time labels (x-axis) - NOW CORRECTLY ADJUSTED FOR INTERVAL START TIME
+    num_ticks = 8  # Time ticks for balanced detail
     for i in range(num_ticks):
         x_percent = i / (num_ticks - 1)
         x_pos = int(margin_left + target_width * x_percent)
         
-        # Calculate the actual time value
-        time_val = max_time * x_percent
+        # Calculate the actual time value WITH interval start time included
+        time_val = start_time + max_time * x_percent
         
         # Draw tick
         cv2.line(profiles_img, (x_pos, img_height - margin_bottom), 
@@ -134,31 +157,47 @@ def plot_profiles_split_channels(profiles, n_channels, maxval, minval=None, samp
             
         cv2.putText(profiles_img, time_label, 
                    (x_pos - 30, img_height - 15), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
+        
+        # Add faint vertical grid lines for better time tracking
+        cv2.line(profiles_img, (x_pos, margin_top), (x_pos, img_height - margin_bottom), 
+                (200, 200, 200), 1, cv2.LINE_AA)
     
-    # Add axis titles
+    # Add axis titles - larger font for better visibility
     cv2.putText(profiles_img, "Frequency", 
                (20, margin_top // 2), 
-               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
+               cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 2)
     
     cv2.putText(profiles_img, "Time", 
                (img_width // 2, img_height - 5), 
-               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
+               cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 2)
     
-    # Add main title with sampling info
+    # Add main title with sampling info and interval time - larger font
     cv2.putText(profiles_img, f"STFT Analysis (SR: {sampling_rate/1000:.1f}kHz, Window: {frame_length/sampling_rate*1000:.1f}ms)", 
-               (margin_left, 25), 
-               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
+               (margin_left, 30), 
+               cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 2)
     
     return profiles_img
 
 def plot_profiles_file(file_path, draw_diff, n_channels, maxval, maxdiff, mindiff, sampling_rate=96000, frame_length=600):
     profiles = np.load(file_path)
-    profiles_img = plot_profiles_split_channels(profiles, n_channels, maxval, None, sampling_rate, frame_length)
+    
+    # Extract start time from the filename if it exists
+    # Format: filename_interval_1_1.23s-1.45s_profiles.npy
+    start_time = 0.0
+    import re
+    match = re.search(r'_(\d+\.\d+)s-', file_path)
+    if match:
+        start_time = float(match.group(1))
+    
+    profiles_img = plot_profiles_split_channels(profiles, n_channels, maxval, None, 
+                                              sampling_rate, frame_length, start_time)
     cv2.imwrite(file_path[:-4] + '.png', profiles_img)
+    
     if draw_diff:
         diff_profiles = profiles[:, 1:] - profiles[:, :-1]
-        diff_profiles_img = plot_profiles_split_channels(diff_profiles, n_channels, maxdiff, mindiff, sampling_rate, frame_length)
+        diff_profiles_img = plot_profiles_split_channels(diff_profiles, n_channels, maxdiff, mindiff, 
+                                                      sampling_rate, frame_length, start_time)
         cv2.imwrite(file_path[:-13] + '_diff_profiles.png', diff_profiles_img)
 
 
