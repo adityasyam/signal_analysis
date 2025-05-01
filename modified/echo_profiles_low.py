@@ -10,7 +10,7 @@ from load_audio import load_audio
 from plot_profiles import plot_profiles_split_channels
 
 def echo_profiles(audio_file, maxval, maxdiff, mindiff, sampling_rate=96000, n_channels=2, 
-                  frame_length=600, no_overlapp=False, no_diff=False, interval_length=0.2):
+                  frame_length=600, no_overlapp=False, no_diff=False, interval_length=2):
     
     _, all_audio = load_audio(audio_file)
     all_audio = np.reshape(all_audio, (-1, n_channels))
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     parser.add_argument('--frame_length', help='length of each audio frame', type=int, default=600)
     parser.add_argument('--no_overlapp', help='disable overlapping while processing frames', action='store_true')
     parser.add_argument('--no_diff', help='do not generate differential echo profiles', action='store_true')
-    parser.add_argument('--interval_length', help='length of each interval in seconds', type=float, default=0.2)
+    parser.add_argument('--interval_length', help='length of each interval in seconds', type=float, default=2)
     
     args = parser.parse_args()
     
